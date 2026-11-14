@@ -2,6 +2,7 @@
 
 Řešení case study pro Dvořák & Zedník Wealth Management. Webová aplikace, která pro každého klienta ukáže odchylku od cílového portfolia, rozhodne, jestli zasáhnout, navrhne konkrétní obchody a spočítá poplatky a daň podle českých pravidel.
 
+- **Aplikace online:** https://dz-rebalancing.vercel.app
 - **Popis pravidel a předpokladů (1 strana):** [docs/POPIS.md](docs/POPIS.md)
 - **Výstup pro přiložená data:** [docs/VYSTUP.md](docs/VYSTUP.md)
 
