@@ -175,10 +175,12 @@ export function App() {
               </span>
             )}
             <button className="btn btn-dark" onClick={() => setGuide((x) => !x)} aria-expanded={guide}>
-              Jak to číst
+              <span className="hide-sm">Jak to číst</span>
+              <span className="show-sm">Návod</span>
             </button>
             <button className="btn btn-accent" onClick={() => setRulesOpen((x) => !x)} aria-expanded={rulesOpen} aria-controls="pravidla">
-              {rulesOpen ? 'Skrýt pravidla' : 'Pravidla a data'}
+              <span className="hide-sm">{rulesOpen ? 'Skrýt pravidla' : 'Pravidla a data'}</span>
+              <span className="show-sm">{rulesOpen ? 'Skrýt pravidla' : 'Pravidla'}</span>
             </button>
           </div>
         </div>

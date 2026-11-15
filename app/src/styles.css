@@ -157,6 +157,13 @@ select {
   display: flex;
   align-items: center;
   gap: 16px;
+  flex: none;
+}
+.brand {
+  min-width: 0;
+}
+.show-sm {
+  display: none;
 }
 .top-meta {
   font-size: 12px;
@@ -1339,18 +1346,87 @@ legend {
   }
 }
 @media (max-width: 720px) {
-  .tbl-clients th:nth-child(3),
-  .tbl-clients td:nth-child(3) {
+  /* Na úzké obrazovce se tabulka klientů skládá pod sebe: jeden klient = jeden blok. */
+  .tbl-clients,
+  .tbl-clients tbody,
+  .tbl-clients tr,
+  .tbl-clients td {
+    display: block;
+    width: auto;
+  }
+  .tbl-clients thead {
     display: none;
   }
-  .tbl-clients td:first-child {
+  .tbl-clients tr {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .tbl-clients tbody tr:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+  .tbl-clients td,
+  .tbl-clients td:first-child,
+  .tbl-clients td:last-child {
+    padding: 3px 0;
+    border-bottom: 0;
     white-space: normal;
+  }
+  .tbl-clients .client-name {
+    font-size: 16px;
+  }
+  .tbl-clients td.num {
+    text-align: left !important;
+  }
+  .tbl-clients td.num::before {
+    content: 'Náklady: ';
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+  .tbl-clients td.num > div {
+    display: inline;
+    margin-left: 6px;
+  }
+  .tbl-clients .row-changed > td,
+  .tbl-clients .row-changed > td:first-child {
+    padding-left: 10px;
   }
   .notice {
     flex-direction: column;
   }
 }
 @media (max-width: 560px) {
+  /* Hlavička se musí vejít na telefon: kratší popisky, menší tlačítka, název se smí zalomit. */
+  .hide-sm {
+    display: none;
+  }
+  .show-sm {
+    display: inline;
+  }
+  .top-in {
+    gap: 8px;
+  }
+  .top-right {
+    gap: 6px;
+  }
+  .top .btn {
+    min-height: 34px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+  .brand {
+    gap: 8px;
+  }
+  .brand strong {
+    font-size: 15px;
+  }
+  .offbar {
+    grid-template-columns: 62px minmax(20px, 1fr) auto;
+    gap: 8px;
+  }
+  .offbar-val .sub-inline {
+    font-size: 11px;
+  }
   .tbl-legend .sub-inline {
     display: none;
   }
@@ -1363,9 +1439,19 @@ legend {
   h1 {
     font-size: 28px;
   }
-  .kpis,
   .variants {
     grid-template-columns: 1fr;
+  }
+  .kpis {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .kpi {
+    padding: 12px;
+  }
+  .kpi-value {
+    font-size: 17px;
+    white-space: normal;
   }
   .card {
     padding: 16px;
