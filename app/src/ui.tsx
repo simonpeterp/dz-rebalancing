@@ -95,6 +95,12 @@ export function useWidth<T extends HTMLElement>(initial = 600) {
   return [ref, width] as const;
 }
 
+/** Dnešní datum podle hodin počítače (ne UTC), jako YYYY-MM-DD. */
+export function todayISO(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
 /** Bublina s detailem pod kurzorem. */
 export function useTip() {
   const [tip, setTip] = useState<{ x: number; y: number; content: ReactNode } | null>(null);

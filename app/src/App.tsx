@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { VARIANT_LABEL, czk, day } from '../../adapters/cs';
 import { parseWorkbook } from '../../adapters/excel';
-import { DEFAULT_SETTINGS, diffPlans, recommend, type CashFlow, type Dataset, type Plan, type PlanDiff, type Recommendation, type Settings, type VariantKey } from '../../engine';
+import { DEFAULT_SETTINGS, diffDays, diffPlans, recommend, type CashFlow, type Dataset, type Plan, type PlanDiff, type Recommendation, type Settings, type VariantKey } from '../../engine';
 import { ChangeBar } from './Changes';
 import { ClientDetail } from './ClientDetail';
 import { Dashboard } from './Dashboard';
+import { Guide } from './Guide';
 import { RulesPanel } from './RulesPanel';
 import { settingsChanges } from './rules';
+import { todayISO } from './ui';
 
 const SAMPLE = 'data/DZ_case_study_rebalancing_data.xlsx';
 const store = {
@@ -76,7 +78,8 @@ export function App() {
   const [variants, setVariants] = useState<Record<string, Variant>>({});
   const [baseline, setBaseline] = useState<Scenario>(() => ({ settings, simFlows: [], variants: {} }));
   const [compare, setCompare] = useState(false);
-  const [rulesOpen, setRulesOpen] = useState(() => window.matchMedia('(min-width: 1100px)').matches);
+  const [rulesOpen, setRulesOpen] = useState(() => window.matchMedia('(min-width: 1280px)').matches);
+  const [guide, setGuide] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const hash = useHash();
@@ -140,6 +143,9 @@ export function App() {
     return out;
   }, [baseline, settings, simFlows, variants, rows]);
   const dirty = changes.length > 0 || rows.some((r) => r.diff.changed);
+  // Pravidla se ukládají v prohlížeči. Liší-li se od výchozích, musí to být vidět, jinak čísla nesedí s dokumentací.
+  const custom = useMemo(() => settingsChanges(DEFAULT_SETTINGS, settings), [settings]);
+  const age = data ? diffDays(data.asOf, todayISO()) : 0;
   useEffect(() => {
     if (!dirty) setCompare(false);
   }, [dirty]);
@@ -164,9 +170,13 @@ export function App() {
           <div className="top-right">
             {data && (
               <span className="top-meta">
-                Ocenění k {day(data.asOf)} · {source}
+                Ocenění k {day(data.asOf)}
+                {age > 0 && ` (před ${age} ${age === 1 ? 'dnem' : 'dny'})`} · {source}
               </span>
             )}
+            <button className="btn btn-dark" onClick={() => setGuide((x) => !x)} aria-expanded={guide}>
+              Jak to číst
+            </button>
             <button className="btn btn-accent" onClick={() => setRulesOpen((x) => !x)} aria-expanded={rulesOpen} aria-controls="pravidla">
               {rulesOpen ? 'Skrýt pravidla' : 'Pravidla a data'}
             </button>
@@ -201,6 +211,17 @@ export function App() {
               {warnings.map((w) => (
                 <div key={w}>{w}</div>
               ))}
+            </div>
+          )}
+          {guide && <Guide onClose={() => setGuide(false)} />}
+          {custom.length > 0 && (
+            <div className="notice">
+              <span>
+                <strong>Pravidla se liší od výchozích.</strong> {custom.join(' · ')}
+              </span>
+              <button className="link" onClick={() => setSettings(DEFAULT_SETTINGS)}>
+                Obnovit výchozí
+              </button>
             </div>
           )}
           {!current ? (

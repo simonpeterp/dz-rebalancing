@@ -329,15 +329,16 @@ export function TimelineLegend({ kinds }: { kinds: TLKind[] }) {
 /**
  * Události na společné časové ose. Jeden řádek na klienta (přehled) nebo na druh události (detail).
  * `spread` rozestoupí různé druhy ve stejném řádku, aby se nepřekrývaly.
+ * `labels` připíše pod značky datum (kde je na něj místo), aby osa šla číst i bez najetí myší.
  */
-export function Timeline({ lanes, from, to, horizonEnd, spread = false }: { lanes: TLLane[]; from: string; to: string; horizonEnd?: string; spread?: boolean }) {
+export function Timeline({ lanes, from, to, horizonEnd, spread = false, labels = false }: { lanes: TLLane[]; from: string; to: string; horizonEnd?: string; spread?: boolean; labels?: boolean }) {
   const [ref, w] = useWidth<HTMLDivElement>(800);
   const tip = useTip();
   const labelW = Math.min(150, Math.max(...lanes.map((l) => l.label.length)) * 7.2 + 14);
   const L = labelW + 10;
   const R = 18;
   const T = 40;
-  const laneH = spread ? 46 : 36;
+  const laneH = labels ? 50 : spread ? 46 : 36;
   const H = T + lanes.length * laneH + 8;
   const span = Math.max(1, diffDays(from, to));
   const x = (d: string) => L + (Math.max(0, Math.min(span, diffDays(from, d))) / span) * (w - L - R);
@@ -362,7 +363,7 @@ export function Timeline({ lanes, from, to, horizonEnd, spread = false }: { lane
         {months.map((m, i) => (
           <g key={m.date}>
             <line x1={x(m.date)} x2={x(m.date)} y1={T - 6} y2={H - 4} stroke={GRID} />
-            {i % every === 0 && x(m.date) - L > 44 && (
+            {i % every === 0 && x(m.date) - L > 86 && (
               <text x={x(m.date) + 4} y={12} className="ax">
                 {m.label}
               </text>
@@ -371,7 +372,7 @@ export function Timeline({ lanes, from, to, horizonEnd, spread = false }: { lane
         ))}
         <line x1={x(from)} x2={x(from)} y1={T - 6} y2={H - 4} stroke={INK} />
         <text x={x(from) + 4} y={12} className="ax ax-strong">
-          {dayShort(from)}
+          ocenění {dayShort(from)}
         </text>
         {horizonEnd && horizonEnd < to && (
           <>
@@ -382,7 +383,8 @@ export function Timeline({ lanes, from, to, horizonEnd, spread = false }: { lane
           </>
         )}
         {lanes.map((lane, i) => {
-          const cy = T + i * laneH + laneH / 2;
+          const cy = T + i * laneH + (labels ? 16 : laneH / 2);
+          let lastLabelX = -100;
           return (
             <g key={lane.label}>
               <line x1={L} x2={w - R} y1={cy} y2={cy} stroke={GRID} />
@@ -419,6 +421,14 @@ export function Timeline({ lanes, from, to, horizonEnd, spread = false }: { lane
                     onClick={() => lane.href && (window.location.hash = lane.href)}
                   >
                     <Glyph kind={it.kind} cx={cx} cy={yy} />
+                    {labels &&
+                      cx - lastLabelX >= 40 &&
+                      ((lastLabelX = cx),
+                      (
+                        <text x={cx} y={yy + 23} textAnchor="middle" className="ax">
+                          {dayShort(it.date)}
+                        </text>
+                      ))}
                     <circle cx={cx} cy={yy} r={12} fill="transparent" />
                   </g>
                 );

@@ -182,7 +182,11 @@ export function explain(r: Recommendation, s: Settings): string[] {
       out.push(
         `Co rozložení obnáší: kdyby trh po první části klesl o ${s.shockPct} %, vyjde ${word(e.downCzk)} než všechno hned; kdyby o ${s.shockPct} % vzrostl, ${word(e.upCzk)}. Do ${day(last)} zůstává část portfolia mimo cílové váhy.`,
       );
+      // Poctivě obě strany: rozložený nákup není cesta k vyššímu výnosu.
+      if (e.downCzk > 0)
+        out.push('Co mluví proti: v průměru vychází nákup najednou lépe, protože peníze jsou na trhu dřív. Rozložení je pojistka proti špatnému načasování, ne cesta k vyššímu výnosu.');
     }
+    out.push('Při dalším nahrání dat se plán počítá znovu ze stavu účtu. Rozpracované části proto provádějte podle staženého CSV.');
   } else if (r.recommended === 'staged') {
     out.push(`Nástroj doporučuje zásah rozložit (čistý nákup z hotovosti je ${pct(r.netBuyShare)} portfolia). Zvolena je ale varianta ${VARIANT_LABEL[p.variant]}.`);
   } else if (r.stagedPlan && p.status !== 'none') {

@@ -39,7 +39,13 @@ export function eventText(e: AgendaEvent): { tag: string; cls: string; text: str
       text: (e.note || (e.amountCzk > 0 ? 'Vklad' : 'Výběr')) + (e.inHorizon ? '' : ' (za horizontem, zatím se s ním neobchoduje)'),
       amount: signed(e.amountCzk),
     };
-  return { tag: 'Osvobození', cls: 'ev-exempt', text: `${e.ticker} z nákupu ${day(e.buyDate)} splní časový test`, amount: `odpadne daň ${czk(e.taxSavedCzk)}` };
+  // Daň je za prodej celé pozice; plán z ní může prodávat jen část, proto se liší od „ušetřeno čekáním“.
+  return {
+    tag: 'Osvobození',
+    cls: 'ev-exempt',
+    text: `${e.ticker} z nákupu ${day(e.buyDate)} splní časový test (pozice za ${czk(e.valueCzk)})`,
+    amount: `daň z celé pozice ${czk(e.taxSavedCzk)} → 0 Kč`,
+  };
 }
 
 export function timelineItem(e: AgendaEvent): TLItem {
@@ -63,9 +69,10 @@ export function Agenda({ asOf, rows, showClient, foldAfter }: { asOf: string; ro
   const shown = foldAfter && !all ? matching.filter((r) => r.ev.date <= foldAfter) : matching;
   const hidden = matching.length - shown.length;
   const count = (f: Filter) => rows.filter((r) => r.change !== 'removed' && (f === 'all' || r.ev.kind === f)).length;
+  // Počítá se od data ocenění, ne od dnešního dne: data mohou být i několik týdnů stará.
   const when = (d: string) => {
     const n = diffDays(asOf, d);
-    return n === 0 ? 'dnes' : n === 1 ? 'zítra' : `za ${n} dnů`;
+    return n === 0 ? 'den ocenění' : `${n} ${n === 1 ? 'den' : n < 5 ? 'dny' : 'dnů'} po ocenění`;
   };
   return (
     <>

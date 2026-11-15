@@ -4,12 +4,12 @@ Webová aplikace, která z Excelu ve formátu zadání spočítá pro každého 
 
 ## Pravidla a proč
 
-1. **Toleranční pásmo 5/25.** Zasahuje se, až když se aktivum odchýlí o víc než 5 p. b., nebo o víc než 25 % své cílové váhy (platí užší hranice). Obchoduje se tedy jen při skutečné odchylce, ne podle kalendáře. Hotovost má pásmo ±1 p. b.
+1. **Toleranční pásmo 5/25.** Zasahuje se, až když se aktivum odchýlí o víc než 5 p. b., nebo o víc než 25 % své cílové váhy (platí užší hranice). Hotovost má pásmo ±1 p. b.
 2. **Cash flow nejdřív.** Vklady a výběry v příštích 90 dnech se započtou předem: vklad jde do podvážených aktiv, na výběr se prodávají jen nadvážená. Tyto obchody by proběhly tak jako tak, takže vracejí portfolio k cíli zadarmo.
 3. **Teprve potom kontrola pásma.** Je-li i po cash flow něco mimo pásmo, dorovná se portfolio na cílové váhy. Obchody pod 0,5 % portfolia se vynechávají.
 4. **Daňově nejlevnější kusy napřed.** Každý nákup je samostatná daňová pozice. Pořadí prodeje: zdanitelná ztráta, osvobozené kusy, zdanitelné od nejmenšího zisku.
 5. **Počkat, když se to vyplatí.** Osvobodí-li se pozice do 90 dnů a ušetří to aspoň 10 000 Kč, prodej se odloží na první osvobozený den. Aplikace ukáže, o kolik smí aktivum mezitím zlevnit, než úsporu smaže.
-6. **Velký nákup rozložit.** Přesáhne-li čistý nákup z hotovosti 20 % portfolia, doporučí se rozdělit ho do 3 částí po 30 dnech, aby vstup do trhu nestál na kurzu jediného dne. Výměna jednoho aktiva za druhé se nerozkládá: expozici vůči trhu nezvyšuje a odklad by jen držel portfolio mimo cíl. Ručně lze rozložit cokoli.
+6. **Velký nákup rozložit.** Přesáhne-li čistý nákup z hotovosti 20 % portfolia, doporučí se rozdělit ho do 3 částí po 30 dnech, aby vstup do trhu nestál na kurzu jediného dne. Je to pojistka, ne cesta k výnosu: v průměru vychází nákup najednou lépe, proto je hranice nastavitelná. Výměna jednoho aktiva za druhé se nerozkládá, odklad by jen držel portfolio mimo cíl.
 
 Varianty provedení (hned, počkat, rozložit) jsou u klienta vedle sebe s daní, poplatky a datem dokončení. Scénář „trh se po první části posune o ±10 %“ říká v korunách, co rozložení přinese nebo bude stát; pravděpodobnosti nástroj neodhaduje. Všechny hodnoty jsou nastavitelné a každá změna se zvýrazní proti výchozímu stavu.
 
@@ -30,8 +30,8 @@ Varianty provedení (hned, počkat, rozložit) jsou u klienta vedle sebe s daní
 
 - Nestahuje ceny ani kurzy, bere je z Excelu. Neodesílá pokyny brokerovi, jen je vyexportuje do CSV.
 - Nezná roční limit 40 mil. Kč pro osvobozené příjmy, solidární sazbu 23 %, daňové ztráty PO z minulých let ani náklady na konverzi měn (lze zahrnout do poplatku). Limit 100 000 Kč posuzuje za celý plán, i přes konec roku.
-- Scénář hýbe všemi instrumenty stejně; rozdílný vývoj akcií a dluhopisů nemodeluje.
-- Neeviduje historii zásahů. Každý měsíc se nahraje nový Excel.
+- Scénář hýbe všemi instrumenty stejně.
+- Neeviduje historii zásahů ani rozpracované plány. Každý měsíc počítá znovu z nového Excelu; zbylé části rozloženého nákupu se proto provádějí podle exportovaného CSV.
 
 ## Změny v datech
 

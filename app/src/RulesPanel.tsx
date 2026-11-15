@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { day } from '../../adapters/cs';
 import { DEFAULT_SETTINGS, type Settings } from '../../engine';
-import { GROUPS, type Field } from './rules';
+import { GROUPS, fieldError, num, type Field } from './rules';
 
 interface Props {
   settings: Settings;
@@ -17,32 +17,36 @@ interface Props {
   sampleUrl: string;
 }
 
-const show = (x: number) => String(x).replace('.', ',');
-
-/** Číselné pole, které dovolí rozepsanou hodnotu („0,“) a ven posílá jen platná čísla. */
+/**
+ * Číselné pole. Dovolí rozepsanou hodnotu („0,“), ven posílá jen platná čísla v povoleném rozsahu
+ * a u neplatné hodnoty řekne proč; výpočet mezitím běží s poslední platnou.
+ */
 function NumField({ field, value, base, onChange }: { field: Field; value: number; base: number; onChange: (n: number) => void }) {
   const [text, setText] = useState(String(value));
-  const parse = (t: string) => Number(t.replace(/\s/g, '').replace(',', '.'));
+  const parse = (t: string) => (t.trim() === '' ? NaN : Number(t.replace(/\s/g, '').replace(',', '.')));
   useEffect(() => {
-    if (parse(text) !== value) setText(String(value));
+    if (parse(text) !== value) setText(String(value)); // hodnota se změnila zvenku (obnovení výchozích, vrácení změn)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
+  const error = fieldError(field, parse(text));
   const changed = value !== base;
   return (
-    <label className={`rule ${changed ? 'rule-changed' : ''}`}>
+    <label className={`rule ${changed ? 'rule-changed' : ''} ${error ? 'rule-error' : ''}`}>
       <span className="rule-name">
         {field.name}
-        <small>{changed ? `${field.unit} · bylo ${show(base)}` : field.unit}</small>
+        <small>{error ? `${error}; platí ${num(value)}` : changed ? `${field.unit} · bylo ${num(base)}` : field.unit}</small>
       </span>
       <input
         type="number"
-        min={0}
+        min={field.min}
+        max={field.max}
         step={field.step}
         value={text}
+        aria-invalid={error !== null}
         onChange={(e) => {
           setText(e.target.value);
           const n = parse(e.target.value);
-          if (e.target.value !== '' && Number.isFinite(n) && n >= 0) onChange(n);
+          if (fieldError(field, n) === null) onChange(n);
         }}
         onBlur={() => setText(String(value))}
       />

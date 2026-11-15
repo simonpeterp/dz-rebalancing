@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { STATUS_LABEL, STATUS_ORDER, czk, day, label, mil, pct, pp, statusKind, summary, tradeCount, type StatusKind } from '../../adapters/cs';
+import { STATUS_LABEL, STATUS_ORDER, czk, day, dayShort, label, mil, pct, pp, statusKind, summary, tradeCount, type StatusKind } from '../../adapters/cs';
 import { ordersCsv } from '../../adapters/csv';
-import { CASH, addDays, agenda, offTargetCzk, type Dataset, type Plan, type Settings } from '../../engine';
+import { CASH, addDays, agenda, offTargetCzk, type AgendaEvent, type Dataset, type Plan, type Settings } from '../../engine';
 import { Agenda, agendaWithChanges, timelineItem } from './Agenda';
 import type { Row } from './App';
 import { CompareAll } from './Changes';
@@ -28,6 +28,26 @@ function totals(plans: Plan[]) {
     fees: sum(plans.map((p) => p.feesCzk)),
     tax: sum(plans.map((p) => p.taxCzk)),
   };
+}
+
+const plural = (n: number, one: string, few: string, many: string) => `${n} ${n === 1 ? one : n >= 2 && n <= 4 ? few : many}`;
+
+/** Jedna řádka do záhlaví sbaleného kalendáře: co se děje v nejbližších třech dnech s událostí. */
+function teaser(events: AgendaEvent[], asOf: string): string {
+  const dates = [...new Set(events.map((e) => e.date))].slice(0, 3);
+  return dates
+    .map((d) => {
+      const on = events.filter((e) => e.date === d);
+      const n = (f: (e: AgendaEvent) => boolean) => on.filter(f).length;
+      const parts = [
+        n((e) => e.kind === 'trade') && plural(n((e) => e.kind === 'trade'), 'obchod', 'obchody', 'obchodů'),
+        n((e) => e.kind === 'flow' && e.amountCzk > 0) && plural(n((e) => e.kind === 'flow' && e.amountCzk > 0), 'vklad', 'vklady', 'vkladů'),
+        n((e) => e.kind === 'flow' && e.amountCzk < 0) && plural(n((e) => e.kind === 'flow' && e.amountCzk < 0), 'výběr', 'výběry', 'výběrů'),
+        n((e) => e.kind === 'exempt') && `${n((e) => e.kind === 'exempt')}× osvobození od daně`,
+      ].filter(Boolean);
+      return `${d === asOf ? 'v den ocenění' : dayShort(d)} ${parts.join(', ')}`;
+    })
+    .join(' · ');
 }
 
 export function Dashboard({ data, rows, settings: s, compare }: { data: Dataset; rows: Row[]; settings: Settings; compare: boolean }) {
@@ -58,6 +78,7 @@ export function Dashboard({ data, rows, settings: s, compare }: { data: Dataset;
   // Kalendář: všechny události všech klientů, se značkami změn proti výchozímu stavu.
   const events = useMemo(() => agendaWithChanges(agenda(data.asOf, plans), agenda(data.asOf, basePlans)), [data.asOf, plans, basePlans]);
   const live = events.filter((e) => e.change !== 'removed').map((e) => e.ev);
+  const calendarChanged = events.some((e) => e.change !== 'same');
   // Osa končí posledním obchodem nebo pohybem; vzdálenější daňová osvobození jsou jen v seznamu.
   const horizonEnd = addDays(data.asOf, s.horizonDays);
   const axisEnd = addDays(live.reduce((a, e) => (e.kind !== 'exempt' && e.date > a ? e.date : a), horizonEnd), 10);
@@ -85,7 +106,7 @@ export function Dashboard({ data, rows, settings: s, compare }: { data: Dataset;
         <div>
           <h1>Přehled portfolií</h1>
           <p className="lead">
-            {rows.length} klientů, ocenění k {day(data.asOf)}. Nejdřív celkový obraz, pod ním kalendář všech akcí a jednotliví klienti.
+            {rows.length} klientů, ocenění k {day(data.asOf)}. Nahoře ti, kdo potřebují zásah; podrobnosti a kalendář níž.
           </p>
         </div>
         <button className="btn" onClick={() => download(`pokyny-${data.asOf}.csv`, ordersCsv(data, plans))} disabled={t.orders === 0}>
@@ -96,13 +117,6 @@ export function Dashboard({ data, rows, settings: s, compare }: { data: Dataset;
       {compare && <CompareAll rows={rows} />}
 
       <section className="kpis">
-        <Kpi label="Spravovaný majetek" value={mil(t.aum)} hint={`${rows.length} klientů`} />
-        <Kpi
-          label="Na cílové alokaci"
-          value={pct(1 - t.off / t.aum)}
-          hint={`mimo cíl ${mil(t.off)}, po zásazích ${mil(t.offAfter)}`}
-          delta={<Delta value={t.offAfter - b.offAfter} tone="cost" format={(x) => `${x > 0 ? '+' : '−'}${mil(Math.abs(x))} mimo cíl po zásazích`} suffix="" />}
-        />
         <Kpi label="Klienti k zásahu" value={`${t.acting} z ${rows.length}`} hint={`${rows.length - t.acting} v pásmu, bez obchodu`} delta={<Delta value={t.acting - b.acting} format={(x) => `${x > 0 ? '+' : '−'}${Math.abs(x)}`} />} />
         <Kpi
           label="Práce před námi"
@@ -116,6 +130,88 @@ export function Dashboard({ data, rows, settings: s, compare }: { data: Dataset;
           hint={`poplatky ${czk(t.fees)} · daň ${czk(t.tax)}${saved > 0 ? ` · čekáním ušetřeno ${czk(saved)}` : ''}`}
           delta={<Delta value={t.fees + t.tax - b.fees - b.tax} tone="cost" />}
         />
+        <Kpi
+          label="Majetek mimo cíl"
+          value={mil(t.off)}
+          hint={`${pct(t.off / t.aum)} majetku, po zásazích ${mil(t.offAfter)}`}
+          delta={<Delta value={t.offAfter - b.offAfter} tone="cost" format={(x) => `${x > 0 ? '+' : '−'}${mil(Math.abs(x))} po zásazích`} suffix="" />}
+        />
+        <Kpi label="Spravovaný majetek" value={mil(t.aum)} hint={`${rows.length} klientů`} />
+      </section>
+
+      <section className="card">
+        <div className="toolbar">
+          <h2>Kdo potřebuje zásah</h2>
+          <div className="filters" role="group" aria-label="Filtr podle stavu">
+            <button className={`pill ${filter === 'all' ? 'on' : ''}`} onClick={() => setFilter('all')}>
+              Všichni {rows.length}
+            </button>
+            {(Object.keys(STATUS_ORDER) as StatusKind[])
+              .filter((k) => counts[k])
+              .map((k) => (
+                <button key={k} className={`pill ${filter === k ? 'on' : ''}`} onClick={() => setFilter(k)}>
+                  {STATUS_LABEL[k]} {counts[k]}
+                </button>
+              ))}
+          </div>
+          {rows.length > 8 && <input className="search" type="search" placeholder="Hledat klienta" aria-label="Hledat klienta" value={q} onChange={(e) => setQ(e.target.value)} />}
+        </div>
+        <table className="tbl tbl-clients">
+          <thead>
+            <tr>
+              <th>Klient</th>
+              <th>Co udělat</th>
+              <th>Největší odchylka od cíle</th>
+              <th className="num">Náklady</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map(({ plan: p, diff }) => {
+              const w = p.valuation.worst;
+              const c = p.valuation.client;
+              const href = `#/klient/${encodeURIComponent(c.name)}`;
+              return (
+                <tr key={c.name} className={`row-link ${diff.changed ? 'row-changed' : ''}`} onClick={() => (window.location.hash = href)}>
+                  <td>
+                    <a href={href} className="client-name" onClick={(e) => e.stopPropagation()}>
+                      {c.name}
+                    </a>{' '}
+                    {diff.changed && <ChangeTag kind="changed" />}
+                    <div className="sub">
+                      {c.taxRegime === 'FO' ? 'fyzická osoba' : 's.r.o.'} · {mil(p.valuation.totalCzk)}
+                    </div>
+                  </td>
+                  <td className="what">
+                    <StatusChip kind={statusKind(p)} />
+                    <div>{summary(p)}</div>
+                  </td>
+                  <td>
+                    <div className={w.breached ? 'bad' : ''}>
+                      {label(w.key)} {pp(w.drift)}
+                    </div>
+                    <div className="drift-cell">
+                      <DriftBar drift={w.drift} tolerance={w.tolerance} />
+                      <span className="sub">pásmo ±{pp(w.tolerance).replace('+', '')}</span>
+                    </div>
+                  </td>
+                  <td className="num">
+                    {p.costCzk > 0 ? czk(p.costCzk) : '–'}
+                    <div>
+                      <Delta value={diff.delta.costCzk} tone="cost" suffix="" />
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+            {shown.length === 0 && (
+              <tr>
+                <td colSpan={4} className="muted">
+                  Žádný klient neodpovídá filtru.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </section>
 
       <div className="two">
@@ -164,15 +260,20 @@ export function Dashboard({ data, rows, settings: s, compare }: { data: Dataset;
         </section>
       </div>
 
-      <section className="card">
-        <div className="card-head">
+      <details className="card fold">
+        <summary>
           <h2>Kalendář akcí</h2>
+          {calendarChanged && <ChangeTag kind="changed" />}
+          <span className="muted">
+            {plural(live.length, 'událost', 'události', 'událostí')} všech klientů podle data. Nejbližší: {teaser(live, data.asOf)}
+          </span>
+        </summary>
+        <div className="card-head">
+          <p className="muted">
+            Obchody, vklady, výběry a daňová osvobození. Do návrhu se počítají pohyby do {s.horizonDays} dnů od ocenění; vzdálenější jsou vidět, ale zatím se s nimi neobchoduje.
+          </p>
           <TimelineLegend kinds={kinds} />
         </div>
-        <p className="muted">
-          Všechny obchody, vklady, výběry a daňová osvobození napříč klienty podle data. Do návrhu se počítají pohyby v příštích {s.horizonDays} dnech; vzdálenější jsou vidět,
-          ale zatím se s nimi neobchoduje.
-        </p>
         <Timeline
           lanes={rows.map((r) => ({
             label: r.plan.clientName,
@@ -185,86 +286,7 @@ export function Dashboard({ data, rows, settings: s, compare }: { data: Dataset;
           spread
         />
         <Agenda asOf={data.asOf} rows={events} showClient foldAfter={horizonEnd} />
-      </section>
-
-      <section className="card">
-        <div className="toolbar">
-          <h2>Klienti</h2>
-          <div className="filters" role="group" aria-label="Filtr podle stavu">
-            <button className={`pill ${filter === 'all' ? 'on' : ''}`} onClick={() => setFilter('all')}>
-              Všichni {rows.length}
-            </button>
-            {(Object.keys(STATUS_ORDER) as StatusKind[])
-              .filter((k) => counts[k])
-              .map((k) => (
-                <button key={k} className={`pill ${filter === k ? 'on' : ''}`} onClick={() => setFilter(k)}>
-                  {STATUS_LABEL[k]} {counts[k]}
-                </button>
-              ))}
-          </div>
-          <input className="search" type="search" placeholder="Hledat klienta" aria-label="Hledat klienta" value={q} onChange={(e) => setQ(e.target.value)} />
-        </div>
-        <div className="scroll">
-          <table className="tbl tbl-clients">
-            <thead>
-              <tr>
-                <th>Klient</th>
-                <th className="num">Majetek</th>
-                <th>Největší odchylka</th>
-                <th>Stav</th>
-                <th>Co udělat</th>
-                <th className="num">Náklady</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map(({ plan: p, diff }) => {
-                const w = p.valuation.worst;
-                const c = p.valuation.client;
-                const href = `#/klient/${encodeURIComponent(c.name)}`;
-                return (
-                  <tr key={c.name} className={`row-link ${diff.changed ? 'row-changed' : ''}`} onClick={() => (window.location.hash = href)}>
-                    <td>
-                      <a href={href} className="client-name" onClick={(e) => e.stopPropagation()}>
-                        {c.name}
-                      </a>{' '}
-                      {diff.changed && <ChangeTag kind="changed" />}
-                      <div className="sub">
-                        {c.taxRegime === 'FO' ? 'FO' : 's.r.o.'} · {c.profile}
-                      </div>
-                    </td>
-                    <td className="num">{czk(p.valuation.totalCzk)}</td>
-                    <td>
-                      <div className="drift-cell">
-                        <DriftBar drift={w.drift} tolerance={w.tolerance} />
-                        <span className={w.breached ? 'bad' : ''}>
-                          {label(w.key)} {pp(w.drift)}
-                        </span>
-                      </div>
-                    </td>
-                    <td>
-                      <StatusChip kind={statusKind(p)} />
-                    </td>
-                    <td className="what">{summary(p)}</td>
-                    <td className="num">
-                      {p.costCzk > 0 ? czk(p.costCzk) : '–'}
-                      <div>
-                        <Delta value={diff.delta.costCzk} tone="cost" suffix="" />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {shown.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="muted">
-                    Žádný klient neodpovídá filtru.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      </details>
     </>
   );
 }

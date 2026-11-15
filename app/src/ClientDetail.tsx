@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
-import { czk, day, doneDate, explain, label, money, pct, pp, qty, signed, statusKind, summary, tradeCount, variantTitle } from '../../adapters/cs';
+import { czk, day, doneDate, explain, label, money, pct, pp, qty, statusKind, summary, tradeCount, variantTitle } from '../../adapters/cs';
 import { ordersCsv } from '../../adapters/csv';
 import { CASH, addDays, agenda, driftPath, isExemptOn, planEnd, shockEffect, taxRate, type CashFlow, type ChangeKind, type Dataset, type Plan, type Settings, type Trade } from '../../engine';
 import { Agenda, agendaWithChanges, eventText } from './Agenda';
 import type { Row, Variant } from './App';
 import { CompareClient } from './Changes';
 import { Allocation, DriftOverTime, Timeline, TimelineLegend, type Series, type TLItem, type TLKind } from './charts';
-import { ChangeTag, Delta, DriftBar, Kpi, StatusChip, assetColor, download } from './ui';
+import { ChangeTag, Delta, DriftBar, Kpi, StatusChip, assetColor, download, todayISO } from './ui';
 
 interface Props {
   data: Dataset;
@@ -30,8 +30,7 @@ export function ClientDetail({ data, row, settings: s, compare, simFlows, onAddF
   // Výchozí datum simulace je dnešek. Musí ale být po datu ocenění (starší pohyby už jsou
   // v zůstatcích) a v horizontu, jinak by se s pohybem neobchodovalo a nic by se nezměnilo.
   const [simDate, setSimDate] = useState(() => {
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const today = todayISO();
     const first = addDays(data.asOf, 1);
     return today < first ? first : today > p.horizonEnd ? p.horizonEnd : today;
   });
@@ -46,6 +45,7 @@ export function ClientDetail({ data, row, settings: s, compare, simFlows, onAddF
     setSimAmount('');
   };
 
+  const better = (x: number) => `${czk(Math.abs(x))} ${x > 0 ? 'lépe' : 'hůř'}`;
   // Varianty provedení a co která obnáší.
   const options = ([rec.nowPlan, rec.waitPlan, rec.stagedPlan].filter(Boolean) as Plan[]).map((plan) => ({ plan, shock: shockEffect(plan, rec.nowPlan, s.shockPct) }));
 
@@ -109,7 +109,14 @@ export function ClientDetail({ data, row, settings: s, compare, simFlows, onAddF
 
       <section className="card reco">
         <h2>Doporučení</h2>
-        <p className="reco-line">{summary(p)}</p>
+        <p className="reco-line">
+          {summary(p)}{' '}
+          {hasTrades && (
+            <button className="link reco-jump" onClick={() => document.getElementById('pokyny')?.scrollIntoView({ behavior: 'smooth' })}>
+              Zobrazit pokyny ↓
+            </button>
+          )}
+        </p>
 
         {options.length > 1 && (
           <>
@@ -146,7 +153,8 @@ export function ClientDetail({ data, row, settings: s, compare, simFlows, onAddF
                   <span className="variant-note">
                     {Math.abs(shock.downCzk) >= 1 ? (
                       <>
-                        Proti „všechno hned“ při pohybu trhu po první části: −{s.shockPct} % → <b>{signed(shock.downCzk)}</b>, +{s.shockPct} % → <b>{signed(shock.upCzk)}</b>.
+                        Kdyby trh po první části klesl o {s.shockPct} %, vyjde o <b>{better(shock.downCzk)}</b> než všechno hned; kdyby o {s.shockPct} % vzrostl, o{' '}
+                        <b>{better(shock.upCzk)}</b>.
                       </>
                     ) : plan.variant === 'now' ? (
                       'Portfolio je na cíli nejdřív. Nákupní i prodejní kurz je daný jedním dnem.'
@@ -225,25 +233,16 @@ export function ClientDetail({ data, row, settings: s, compare, simFlows, onAddF
             <p className="empty">Nic naplánovaného: žádný obchod, pohyb ani blížící se osvobození.</p>
           ) : (
             <>
-              <Timeline lanes={lanes} from={data.asOf} to={axisEnd} horizonEnd={p.horizonEnd} />
+              <Timeline lanes={lanes} from={data.asOf} to={axisEnd} horizonEnd={p.horizonEnd} labels />
               <p className="muted">
-                Najeďte na značku pro podrobnosti. {beyond > 0 ? `Dalších ${beyond} vzdálenějších osvobození a` : 'Všechny události jako'} seznam najdete dole na stránce.
+                Podrobnosti po najetí na značku. {beyond > 0 ? `Dalších ${beyond} vzdálenějších osvobození a` : 'Všechny události jako'} seznam najdete dole na stránce.
               </p>
             </>
           )}
         </section>
       </div>
 
-      <section className="card">
-        <h2>Odchylka od cíle v čase</h2>
-        <p className="muted">
-          Jak daleko je každé aktivum od cílové váhy (v p. b.) od dneška do {day(until)}. Počítá se s dnešními cenami, takže čára se láme jen v den vkladu, výběru nebo obchodu.
-          {p.netFlowCzk < 0 && hasTrades && ' Hotovost připravená na výběr je do dne výběru nad cílem záměrně.'}
-        </p>
-        <DriftOverTime assets={v.assets} names={label} colorOf={(k) => assetColor(data, k)} plan={path} idle={idle} showIdle={hasTrades} />
-      </section>
-
-      <section className="card">
+      <section className="card" id="pokyny">
         <div className="card-head">
           <h2>Co koupit a prodat</h2>
           {hasTrades && (
@@ -371,6 +370,18 @@ export function ClientDetail({ data, row, settings: s, compare, simFlows, onAddF
         </div>
         {p.netFlowCzk !== 0 && <p className="muted">Váhy „po zásahu“ jsou z majetku po plánovaných vkladech a výběrech ({czk(p.projectedTotalCzk)}).</p>}
       </section>
+
+      <details className="card fold">
+        <summary>
+          <h2>Odchylka od cíle v čase</h2>
+          <span className="muted">graf pro každé aktivum: jak se váha vyvíjí do {day(until)} s plánem a bez něj</span>
+        </summary>
+        <p className="muted">
+          Jak daleko je každé aktivum od cílové váhy (v p. b.) ode dne ocenění do {day(until)}. Počítá se s dnešními cenami, takže čára se láme jen v den vkladu, výběru nebo obchodu.
+          {p.netFlowCzk < 0 && hasTrades && ' Hotovost připravená na výběr je do dne výběru nad cílem záměrně.'}
+        </p>
+        <DriftOverTime assets={v.assets} names={label} colorOf={(k) => assetColor(data, k)} plan={path} idle={idle} showIdle={hasTrades} />
+      </details>
 
       <details className="card fold">
         <summary>

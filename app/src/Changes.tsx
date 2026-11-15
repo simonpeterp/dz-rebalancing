@@ -47,8 +47,8 @@ export function ChangeBar({ changes, rows, compare, onCompare, onRevert, onConfi
         <button className="btn btn-dark" onClick={onRevert}>
           Vrátit zpět
         </button>
-        <button className="btn btn-dark" onClick={onConfirm} title="Současný stav se stane novým výchozím stavem pro další porovnávání">
-          Potvrdit změny
+        <button className="btn btn-dark" onClick={onConfirm} title="Současný stav se stane výchozím pro další porovnávání. Nic se neukládá ani neodesílá.">
+          Vzít jako výchozí stav
         </button>
       </div>
     </section>

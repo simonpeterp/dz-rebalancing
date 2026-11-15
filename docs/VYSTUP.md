@@ -110,6 +110,8 @@ Firemní rezerva, horizont 10 let · s.r.o. · Firma 20. 10. 2026 převedla voln
 - Jen nákupy, žádný prodej: u s.r.o. by se každý prodej se ziskem danil 21 %.
 - Čistý nákup z hotovosti je 42,6 % portfolia, víc než hranice 20 %. Koupit všechno v jeden den by byla sázka na jediný kurz, proto je zásah rozložen do 3 částí po 30 dnech, poslední 22. 12. 2026.
 - Co rozložení obnáší: kdyby trh po první části klesl o 10 %, vyjde o 300 000 Kč lépe než všechno hned; kdyby o 10 % vzrostl, o 300 000 Kč hůř. Do 22. 12. 2026 zůstává část portfolia mimo cílové váhy.
+- Co mluví proti: v průměru vychází nákup najednou lépe, protože peníze jsou na trhu dřív. Rozložení je pojistka proti špatnému načasování, ne cesta k vyššímu výnosu.
+- Při dalším nahrání dat se plán počítá znovu ze stavu účtu. Rozpracované části proto provádějte podle staženého CSV.
 - Za horizontem, zatím nezapočteno: vklad 3 000 000 Kč 15. 2. 2027.
 
 | Aktivum | Hodnota | Váha | Cíl | Odchylka | Pásmo | Po zásahu |
