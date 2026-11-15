@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseWorkbook } from '../adapters/excel';
-import { CASH, DEFAULT_SETTINGS as S, exemptFrom, recommend, taxOnSales, tolerance, valuate } from './index';
+import { CASH, DEFAULT_SETTINGS as S, agenda, buildPlan, diffPlans, driftPath, exemptFrom, planEnd, recommend, shockEffect, taxOnSales, tolerance, valuate } from './index';
 
 const { dataset: data, warnings } = parseWorkbook(readFileSync('zadani/DZ_case_study_rebalancing_data.xlsx'));
 const w = (name: string, key: string) => valuate(data, name, S).assets.find((a) => a.key === key)!;
@@ -114,6 +114,18 @@ describe('doporučení pro přiložená data', () => {
     expect(r.plan.after.find((a) => a.key === 'VWCE')!.weight).toBeCloseTo(0.55, 3);
   });
 
+  it('Klient D: nákup za 42,6 % portfolia se doporučí rozložit do 3 částí po 30 dnech', () => {
+    const r = recommend(data, 'Klient D', S);
+    expect(r.netBuyShare).toBeCloseTo(4_500_000 / 10_560_541.5, 4);
+    expect(r.recommended).toBe('staged');
+    expect(r.plan.stages.map((s) => s.date)).toEqual(['2026-10-23', '2026-11-22', '2026-12-22']);
+    for (const st of r.plan.stages) expect(st.trades.reduce((a, t) => a + t.czk, 0)).toBeCloseTo(1_500_000, -1);
+    expect(r.nowPlan.stages).toHaveLength(1);
+    // scénář: 3 mil. Kč se nakoupí až po pohybu trhu o 10 % → ±300 000 Kč proti nákupu najednou
+    expect(shockEffect(r.plan, r.nowPlan, 10).downCzk).toBeCloseTo(300_000, -1);
+    expect(shockEffect(r.plan, r.nowPlan, 10).upCzk).toBeCloseTo(-300_000, -1);
+  });
+
   it('Klient E: počkat na 21. 11. 2026, kdy se osvobodí nákup z 20. 11. 2023', () => {
     const r = recommend(data, 'Klient E', S);
     expect(r.plan.status).toBe('wait');
@@ -134,5 +146,110 @@ describe('doporučení pro přiložená data', () => {
       const p = recommend(data, c.name, S).plan;
       expect(p.after.find((a) => a.key === CASH)!.valueCzk).toBeGreaterThan(-1);
     }
+  });
+});
+
+describe('rozložení v čase', () => {
+  it('rebalancing a výběry se rozložit dají, ale nedoporučují se (expozice vůči trhu se nezvyšuje)', () => {
+    expect(recommend(data, 'Klient A', S).recommended).toBe('now');
+    expect(recommend(data, 'Klient B', S).recommended).toBe('now');
+    expect(recommend(data, 'Klient E', S).recommended).toBe('wait');
+    expect(recommend(data, 'Klient C', S).stagedPlan).toBeNull(); // není co rozkládat
+  });
+
+  it('rozložená varianta obchoduje stejný objem a skončí na stejných vahách', () => {
+    for (const name of ['Klient A', 'Klient B', 'Klient D', 'Klient E']) {
+      const r = recommend(data, name, S);
+      const st = r.stagedPlan!;
+      const base = r.waitPlan && r.recommended !== 'now' ? r.waitPlan : r.nowPlan;
+      expect(st.sellCzk).toBeCloseTo(base.sellCzk, -1);
+      expect(st.buyCzk).toBeCloseTo(base.buyCzk, -1);
+      st.after.forEach((a, i) => expect(a.weight).toBeCloseTo(base.after[i].weight, 4));
+      expect(st.cashShortfall).toBe(false);
+    }
+  });
+
+  it('Klient E rozloženě: nákup z 20. 11. 2023 se prodává až po časovém testu, daň 0', () => {
+    const st = recommend(data, 'Klient E', S).stagedPlan!;
+    expect(st.taxCzk).toBe(0);
+    const lots = st.stages.flatMap((s) => s.trades.flatMap((t) => t.lots.map((l) => ({ ...l, date: s.date }))));
+    expect(lots.filter((l) => l.buyDate === '2023-11-20').every((l) => l.date >= '2026-11-21' && l.exempt)).toBe(true);
+  });
+
+  it('Klient B rozloženě: hotovost v žádný den neklesne pod nulu', () => {
+    const st = recommend(data, 'Klient B', S).stagedPlan!;
+    const path = driftPath(data.asOf, st, { trades: true, until: planEnd(st) });
+    for (const p of path) expect(p.weight[CASH]).toBeGreaterThan(-1e-9);
+  });
+
+  it('když by rozložení nepokrylo dřívější výběr, potřebná část prodeje se předsune', () => {
+    const early = { ...data, cashFlows: [...data.cashFlows, { client: 'Klient B', date: '2026-11-05', amountCzk: -1_500_000, note: 'test' }] };
+    const st = buildPlan(early, 'Klient B', S, { allowDefer: false, parts: 3, intervalDays: 30 });
+    expect(st.cashShortfall).toBe(false);
+    const path = driftPath(early.asOf, st, { trades: true, until: planEnd(st) });
+    for (const p of path) expect(p.weight[CASH]).toBeGreaterThan(-1e-9);
+    expect(st.stages[0].trades.reduce((a, t) => a + t.czk, 0)).toBeGreaterThan(800_000); // víc než třetina
+  });
+
+  it('čekání u Klienta E se přestane vyplácet při poklesu VWCE o 3,8 %', () => {
+    const r = recommend(data, 'Klient E', S);
+    expect(r.waitBreakEvenDrop!).toBeCloseTo(r.taxSavedByWaitingCzk / 2_148_429, 4);
+    expect(r.waitBreakEvenDrop! * 100).toBeCloseTo(3.77, 1);
+  });
+});
+
+describe('vývoj v čase a kalendář', () => {
+  it('poslední bod vývoje odpovídá vahám po zásahu', () => {
+    for (const c of data.clients) {
+      const p = recommend(data, c.name, S).plan;
+      const last = driftPath(data.asOf, p, { trades: true, until: p.horizonEnd }).at(-1)!;
+      for (const a of p.after) expect(last.weight[a.key]).toBeCloseTo(a.weight, 6);
+    }
+  });
+
+  it('bez zásahu se váhy mění jen vklady a výběry', () => {
+    const p = recommend(data, 'Klient C', S).plan;
+    const path = driftPath(data.asOf, p, { trades: false, until: p.horizonEnd });
+    expect(path.every((x) => x.totalCzk === path[0].totalCzk)).toBe(true);
+    const b = recommend(data, 'Klient B', S).plan;
+    const idle = driftPath(data.asOf, b, { trades: false, until: b.horizonEnd }).at(-1)!;
+    expect(idle.totalCzk).toBeCloseTo(19_859_317 - 1_755_000, -1);
+    expect(idle.weight[CASH]).toBeLessThan(0); // bez prodeje by na výběry nebylo
+  });
+
+  it('kalendář řadí obchody, pohyby a osvobození všech klientů podle data', () => {
+    const ev = agenda(data.asOf, data.clients.map((c) => recommend(data, c.name, S).plan));
+    expect(ev.map((e) => e.date)).toEqual([...ev.map((e) => e.date)].sort());
+    expect(ev.some((e) => e.kind === 'exempt' && e.clientName === 'Klient E' && e.date === '2026-11-21')).toBe(true);
+    expect(ev.some((e) => e.kind === 'trade' && e.clientName === 'Klient E' && e.date === '2026-11-21' && e.afterTimeTest)).toBe(true);
+    expect(ev.filter((e) => e.kind === 'flow' && e.clientName === 'Klient B')).toHaveLength(7);
+  });
+});
+
+describe('porovnání před a po', () => {
+  it('stejný plán → žádná změna', () => {
+    const p = recommend(data, 'Klient A', S).plan;
+    const d = diffPlans(p, p);
+    expect(d.changed).toBe(false);
+    expect(d.trades.every((t) => t.kind === 'same')).toBe(true);
+  });
+
+  it('vklad 1 mil. Kč u Klienta C: z „bez zásahu“ vzniknou nové nákupy', () => {
+    const more = { ...data, cashFlows: [...data.cashFlows, { client: 'Klient C', date: '2026-11-06', amountCzk: 1_000_000, note: 'Simulace' }] };
+    const d = diffPlans(recommend(data, 'Klient C', S).plan, recommend(more, 'Klient C', S).plan);
+    expect(d.changed).toBe(true);
+    expect(d.statusChanged).toBe(true);
+    expect(d.added).toBeGreaterThan(0);
+    expect(d.removed).toBe(0);
+    expect(d.delta.buyCzk).toBeCloseTo(1_018_000, -3); // vklad + 18 000 Kč volné hotovosti
+  });
+
+  it('dvojnásobný poplatek: obchody stejné, náklady dvojnásobné', () => {
+    const a = recommend(data, 'Klient A', S).plan;
+    const b = recommend(data, 'Klient A', { ...S, feePct: 0.2 }).plan;
+    const d = diffPlans(a, b);
+    expect(d.trades.every((t) => t.kind === 'same')).toBe(true);
+    expect(d.delta.feesCzk).toBeCloseTo(a.feesCzk, 0);
+    expect(d.changed).toBe(true);
   });
 });

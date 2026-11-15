@@ -71,4 +71,8 @@ export interface Settings {
   waitMaxDays: number; // jak dlouho je ochota čekat na osvobození
   waitMinSavingCzk: number; // minimální úspora daně, kvůli které se čeká
   wholeUnits: boolean; // true = jen celé kusy, false = frakce
+  stageParts: number; // do kolika částí lze obchody rozložit v čase (1 = nerozkládat)
+  stageIntervalDays: number; // odstup mezi částmi
+  stageMinPct: number; // rozložení se doporučí, když čistý nákup z hotovosti přesáhne toto % portfolia
+  shockPct: number; // pohyb trhu ve scénáři „co kdyby“ při porovnání variant, v %
 }

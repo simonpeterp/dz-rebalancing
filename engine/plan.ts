@@ -6,7 +6,8 @@
 //      chybějící hotovost získej prodejem nadvážených aktiv.
 //   3. Je i potom něco mimo toleranční pásmo? → dorovnej vše na cíl.
 //   4. Co prodat: po jednotlivých nákupech, daňově nejlevnější napřed.
-//   5. Kdy: prodej nákupu, který bude brzy osvobozen, lze odložit (varianta „počkat“).
+//   5. Kdy: prodej nákupu, který bude brzy osvobozen, lze odložit (varianta „počkat“),
+//      a celý zásah lze rozložit do několika částí v čase (varianta „rozložit“).
 
 import { addDays, diffDays } from './dates';
 import { isExemptOn, taxOnSales, taxRate } from './tax';
@@ -14,6 +15,8 @@ import { CASH, type CashFlow, type Dataset, type Settings } from './types';
 import { tolerance, valuate, type AssetRow, type LotView, type Valuation } from './valuation';
 
 export type PlanStatus = 'none' | 'cashflow' | 'rebalance' | 'wait';
+/** Způsob provedení: vše hned, počkat na časový test, nebo rozložit do částí. */
+export type VariantKey = 'now' | 'wait' | 'staged';
 
 export interface LotSale {
   ticker: string;
@@ -52,6 +55,9 @@ export interface Breach {
 export interface Plan {
   clientName: string;
   status: PlanStatus;
+  variant: VariantKey;
+  parts: number; // do kolika částí je zásah rozložen (1 = nerozložen)
+  partDates: string[]; // data jednotlivých částí, prázdné když není rozložen
   valuation: Valuation; // stav k datu ocenění
   horizonEnd: string;
   flows: CashFlow[]; // započtené (v horizontu)
@@ -77,7 +83,13 @@ export interface Plan {
 
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 
-export function buildPlan(data: Dataset, clientName: string, s: Settings, opts: { allowDefer: boolean }): Plan {
+export interface BuildOptions {
+  allowDefer: boolean; // odložit prodej nákupů, které budou brzy osvobozené
+  parts?: number; // rozložit do tolika částí
+  intervalDays?: number; // odstup částí
+}
+
+export function buildPlan(data: Dataset, clientName: string, s: Settings, opts: BuildOptions): Plan {
   const val = valuate(data, clientName, s);
   const { client } = val;
   const asOf = data.asOf;
@@ -207,10 +219,86 @@ export function buildPlan(data: Dataset, clientName: string, s: Settings, opts: 
   const totalBuys = sum(Object.values(buys));
   if (mode !== 'none' && sales.length === 0 && totalBuys < 1) mode = 'none';
 
-  // 5. Časová osa: prodeje v den prodeje, nákupy co nejdřív, jak na ně bude hotovost
-  //    (bez sahání na peníze, které budou potřeba na pozdější výběry).
+  // 5a. Rozložení v čase. Každý prodej se rozdělí na P stejných částí po `interval` dnech.
+  //     Nákup, který čeká na časový test, se přesune do první části po osvobození.
+  //     Kdyby kvůli rozložení chyběla hotovost na výběr, potřebná část prodeje se předsune.
+  const P = mode === 'none' ? 1 : Math.max(1, Math.floor(opts.parts ?? 1));
+  const interval = Math.max(1, Math.floor(opts.intervalDays ?? 30));
+  const partDates = Array.from({ length: P }, (_, k) => addDays(asOf, k * interval));
+  if (P > 1) {
+    const lotOf = (x: LotSale) => val.lots.find((l) => l.ticker === x.ticker && l.buyDate === x.buyDate) as LotView;
+    const piece = (x: LotSale, qty: number, when: string): LotSale => {
+      const l = lotOf(x);
+      const czk = qty * l.unitCzk;
+      const exempt = isExemptOn(l.exemptFrom, when);
+      return { ...x, qty, czk, gainCzk: (czk * l.gainCzk) / l.valueCzk, when, exempt, deferred: x.deferred && exempt };
+    };
+    const merge = (xs: LotSale[]) => {
+      const m = new Map<string, LotSale>();
+      for (const x of xs) {
+        const k = `${x.ticker}|${x.buyDate}|${x.when}`;
+        const o = m.get(k);
+        m.set(k, o ? piece(x, o.qty + x.qty, x.when) : x);
+      }
+      return [...m.values()];
+    };
+
+    const split: LotSale[] = [];
+    for (const x of sales) {
+      let left = x.qty;
+      partDates.forEach((d, k) => {
+        const when = d >= x.when ? d : (partDates.find((e) => e >= x.when) ?? x.when);
+        let q = x.qty / P;
+        q = k === P - 1 ? left : s.wholeUnits ? Math.floor(q) : Math.round(q * 1e4) / 1e4;
+        q = Math.min(q, left);
+        left -= q;
+        if (q > 0) split.push(piece(x, q, when));
+      });
+    }
+    sales = merge(split);
+
+    for (let guard = 0; guard < 100; guard++) {
+      const ds = [...new Set([asOf, ...flows.map((f) => f.date), ...sales.map((x) => x.when)])].sort();
+      let cash = val.cashCzk;
+      let short: { date: string; need: number } | null = null;
+      for (const d of ds) {
+        cash += sum(flows.filter((f) => f.date === d).map((f) => f.amountCzk)) + sum(sales.filter((x) => x.when === d).map((x) => x.czk));
+        if (cash < -1) {
+          short = { date: d, need: -cash };
+          break;
+        }
+      }
+      if (!short) break;
+      const until = short.date;
+      const to = [...partDates].reverse().find((d) => d <= until) ?? asOf;
+      const losesExemption = (x: LotSale) => (x.exempt && !isExemptOn(lotOf(x).exemptFrom, to) ? 1 : 0);
+      const later = sales.filter((x) => x.when > until).sort((a, b) => losesExemption(a) - losesExemption(b) || a.when.localeCompare(b.when));
+      if (later.length === 0) break; // není co předsunout, plán zůstane označený jako nepokrytý
+      const next = sales.filter((x) => x.when <= until);
+      let need = short.need;
+      for (const x of later) {
+        if (need < 1) {
+          next.push(x);
+          continue;
+        }
+        const unitCzk = lotOf(x).unitCzk;
+        let q = need / unitCzk;
+        q = Math.min(x.qty, s.wholeUnits ? Math.ceil(q) : Math.ceil(q * 1e4) / 1e4);
+        next.push(piece(x, q, to));
+        if (x.qty - q > 1e-9) next.push(piece(x, x.qty - q, x.when));
+        need -= q * unitCzk;
+      }
+      sales = merge(next);
+    }
+  }
+
+  // 5b. Časová osa: prodeje v den prodeje, nákupy co nejdřív, jak na ně bude hotovost
+  //     (bez sahání na peníze, které budou potřeba na pozdější výběry). Při rozložení
+  //     se s každou částí uvolní jen poměrný díl nákupů.
   const inflow = new Map<string, number>([[asOf, 0]]);
   const add = (d: string, x: number) => inflow.set(d, (inflow.get(d) ?? 0) + x);
+  if (P > 1 && totalBuys >= 1) for (const d of partDates) add(d, 0);
+  const released = (d: string) => (P <= 1 ? totalBuys : (totalBuys * partDates.filter((x) => x <= d).length) / P);
   for (const x of sales) add(x.when, x.czk);
   for (const f of flows) add(f.date, f.amountCzk);
   const dates = [...inflow.keys()].sort();
@@ -221,9 +309,10 @@ export function buildPlan(data: Dataset, clientName: string, s: Settings, opts: 
   let done = 0;
   for (let i = 0; i < dates.length; i++) {
     const spendable = Math.min(...cum.slice(i)) - Math.max(0, cashTarget);
-    const inc = Math.min(totalBuys, Math.max(0, spendable)) - done;
+    const inc = Math.min(released(dates[i]), Math.max(0, spendable)) - done;
     const last = i === dates.length - 1;
-    if (inc >= Math.min(minTrade, 1000) || (last && inc > 1)) {
+    // Etapa nákupů menší než nejmenší obchod se nevyplatí (poplatky); počká na další datum.
+    if (inc >= minTrade || (last && inc > 1)) {
       buyStages.set(dates[i], inc);
       done += inc;
     }
@@ -284,7 +373,10 @@ export function buildPlan(data: Dataset, clientName: string, s: Settings, opts: 
 
   return {
     clientName,
-    status: mode === 'none' ? 'none' : deferredUntil ? 'wait' : mode,
+    status: mode === 'none' ? 'none' : deferredUntil && P <= 1 ? 'wait' : mode,
+    variant: P > 1 ? 'staged' : opts.allowDefer ? 'wait' : 'now',
+    parts: P,
+    partDates: P > 1 ? partDates : [],
     valuation: val,
     horizonEnd,
     flows,
@@ -311,50 +403,73 @@ export function buildPlan(data: Dataset, clientName: string, s: Settings, opts: 
 
 export interface Recommendation {
   plan: Plan; // doporučená varianta
+  recommended: VariantKey;
   nowPlan: Plan; // vše provést hned
   waitPlan: Plan | null; // varianta s odloženým prodejem, pokud existuje
+  stagedPlan: Plan | null; // varianta rozložená do částí, pokud se od základní liší
   taxSavedByWaitingCzk: number;
+  /** O kolik smí odložené aktivum do data prodeje zlevnit, aby se čekání ještě vyplatilo (podíl 0–1). */
+  waitBreakEvenDrop: number | null;
+  /** Čistý nákup z hotovosti (nákupy − prodeje) jako podíl portfolia. Podle něj se doporučuje rozložení. */
+  netBuyShare: number;
 }
 
 /**
- * Doporučení: čekat na osvobození se vyplatí, když se tím ušetří aspoň `waitMinSavingCzk`
- * a plán přitom v čase pokryje všechny výběry. Jinak provést vše hned.
+ * Doporučení ve dvou krocích.
+ *   1. Čekat na osvobození se vyplatí, když se tím ušetří aspoň `waitMinSavingCzk`
+ *      a plán přitom v čase pokryje všechny výběry. Jinak provést vše hned.
+ *   2. Rozložit do částí se doporučí jen tam, kde se mění expozice vůči trhu: když čistý
+ *      nákup z hotovosti přesáhne `stageMinPct` % portfolia. Prodej jednoho aktiva a nákup
+ *      druhého riziko vstupu do trhu nenese a jeho odklad by jen držel portfolio mimo cíl.
  */
 export function recommend(data: Dataset, clientName: string, s: Settings): Recommendation {
   const nowPlan = buildPlan(data, clientName, s, { allowDefer: false });
-  if (s.waitMaxDays <= 0) return { plan: nowPlan, nowPlan, waitPlan: null, taxSavedByWaitingCzk: 0 };
-  const w = buildPlan(data, clientName, s, { allowDefer: true });
-  if (!w.deferredUntil) return { plan: nowPlan, nowPlan, waitPlan: null, taxSavedByWaitingCzk: 0 };
-  const saved = nowPlan.taxCzk - w.taxCzk;
-  const worthIt = saved >= s.waitMinSavingCzk && !w.cashShortfall;
-  return { plan: worthIt ? w : nowPlan, nowPlan, waitPlan: w, taxSavedByWaitingCzk: saved };
+  let waitPlan: Plan | null = null;
+  let saved = 0;
+  let base = nowPlan;
+  if (s.waitMaxDays > 0) {
+    const w = buildPlan(data, clientName, s, { allowDefer: true });
+    if (w.deferredUntil) {
+      waitPlan = w;
+      saved = nowPlan.taxCzk - w.taxCzk;
+      if (saved >= s.waitMinSavingCzk && !w.cashShortfall) base = w;
+    }
+  }
+
+  let stagedPlan: Plan | null = null;
+  if (s.stageParts >= 2 && s.stageIntervalDays > 0 && base.status !== 'none') {
+    const st = buildPlan(data, clientName, s, { allowDefer: base === waitPlan, parts: s.stageParts, intervalDays: s.stageIntervalDays });
+    const sameDates = st.stages.map((x) => x.date).join() === base.stages.map((x) => x.date).join();
+    if (!sameDates && (!st.cashShortfall || base.cashShortfall)) stagedPlan = st;
+  }
+  const netBuyShare = base.projectedTotalCzk > 0 ? (base.buyCzk - base.sellCzk) / base.projectedTotalCzk : 0;
+  const plan = stagedPlan && netBuyShare * 100 >= s.stageMinPct ? stagedPlan : base;
+
+  const deferredCzk = waitPlan ? sum(waitPlan.stages.flatMap((st) => st.trades.flatMap((t) => t.lots.filter((l) => l.deferred).map((l) => l.czk)))) : 0;
+  return {
+    plan,
+    recommended: plan.variant,
+    nowPlan,
+    waitPlan,
+    stagedPlan,
+    taxSavedByWaitingCzk: saved,
+    waitBreakEvenDrop: deferredCzk > 0 && saved > 0 ? saved / deferredCzk : null,
+    netBuyShare,
+  };
 }
 
-export interface ExemptionEvent {
-  clientName: string;
-  ticker: string;
-  buyDate: string;
-  exemptFrom: string;
-  days: number;
-  valueCzk: number;
-  taxSavedCzk: number; // daň, která po tomto datu odpadne (při prodeji celé pozice)
-}
+/** Čistý nákup (nákupy − prodeje) v etapách po datu ocenění, v CZK při dnešních cenách. */
+export const laterNetBuyCzk = (p: Plan) =>
+  sum(p.stages.filter((st) => !st.isNow).flatMap((st) => st.trades.map((t) => (t.side === 'buy' ? t.czk : -t.czk))));
 
-/** Daňový kalendář: které pozice se v nejbližší době osvobodí. */
-export function exemptionCalendar(data: Dataset, s: Settings, withinDays = 365): ExemptionEvent[] {
-  return data.clients
-    .flatMap((c) =>
-      valuate(data, c.name, s)
-        .lots.filter((l) => !l.exemptNow && l.exemptFrom !== null && l.gainCzk > 0 && (l.daysToExempt as number) <= withinDays)
-        .map((l) => ({
-          clientName: c.name,
-          ticker: l.ticker,
-          buyDate: l.buyDate,
-          exemptFrom: l.exemptFrom as string,
-          days: l.daysToExempt as number,
-          valueCzk: l.valueCzk,
-          taxSavedCzk: l.taxIfSoldNowCzk,
-        })),
-    )
-    .sort((a, b) => a.exemptFrom.localeCompare(b.exemptFrom));
+/**
+ * Scénář bez pravděpodobností: trh se hned po dnešních obchodech posune o `shockPct` %
+ * (všechny instrumenty stejně) a zbytek plánu se provede za nové ceny. Vrací rozdíl
+ * výsledku proti variantě `ref` (obvykle „vše hned“); kladné číslo = `p` vyjde lépe.
+ * Kdo nakupuje později, při poklesu nakoupí levněji a při růstu dráž.
+ */
+export function shockEffect(p: Plan, ref: Plan, shockPct: number): { downCzk: number; upCzk: number } {
+  const later = laterNetBuyCzk(p) - laterNetBuyCzk(ref);
+  const x = (later * shockPct) / 100;
+  return { downCzk: x, upCzk: -x };
 }

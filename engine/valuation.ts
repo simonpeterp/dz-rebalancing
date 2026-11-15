@@ -49,6 +49,12 @@ export function tolerance(key: string, target: number, s: Settings): number {
   return Math.min(s.absBandPp / 100, (s.relBandPct / 100) * target);
 }
 
+/**
+ * Kolik korun je mimo cílovou alokaci: částka, kterou by bylo potřeba přesunout,
+ * aby váhy seděly přesně na cíl (součet nadvážení; podvážení je stejně velké).
+ */
+export const offTargetCzk = (assets: AssetRow[], totalCzk: number) => totalCzk * assets.reduce((a, x) => a + Math.max(0, x.drift), 0);
+
 export function getClient(data: Dataset, name: string): Client {
   const c = data.clients.find((x) => x.name === name);
   if (!c) throw new Error(`Neznámý klient: ${name}`);

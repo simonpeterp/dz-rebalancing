@@ -27,13 +27,20 @@ engine/      výpočetní jádro: čistý TypeScript, žádná závislost na UI 
   settings.ts    výchozí hodnoty pravidel
   valuation.ts   ocenění, váhy, odchylky, toleranční pásma
   tax.ts         české daně: časový test, limit 100 000 Kč, FO a PO
-  plan.ts        návrh obchodů, výběr daňových pozic, varianta „počkat“
+  plan.ts        návrh obchodů, výběr daňových pozic, varianty „počkat“ a „rozložit“
+  timeline.ts    vývoj vah v čase a kalendář událostí (obchody, pohyby, osvobození)
+  diff.ts        porovnání dvou plánů: co přibylo, zmizelo, změnilo se
   engine.test.ts testy s ručně ověřenými čísly
 adapters/    napojení jádra na okolí
   excel.ts       načtení Excelu ve formátu zadání
   cs.ts          české texty a formátování čísel
   csv.ts         export pokynů
 app/         webové rozhraní (React), jen zobrazuje výsledky jádra
+  Dashboard      přehled všech klientů, složení majetku, kalendář akcí
+  ClientDetail   doporučení, varianty provedení, grafy, obchody
+  RulesPanel     boční panel pravidel, změna se hned přepočítá
+  Changes        lišta změn a srovnání před a po
+  charts         grafy v čistém SVG, bez knihovny
 scripts/     report.ts: generuje docs/VYSTUP.md ze stejného jádra
 docs/        popis a výstup
 public/      ukázková data, která aplikace načte po otevření
@@ -46,11 +53,11 @@ Jádro má jednu vstupní funkci a nepotřebuje prohlížeč:
 ```ts
 import { DEFAULT_SETTINGS, recommend } from './engine';
 
-const { plan, nowPlan, waitPlan, taxSavedByWaitingCzk } = recommend(dataset, 'Klient E', DEFAULT_SETTINGS);
+const { plan, nowPlan, waitPlan, stagedPlan, taxSavedByWaitingCzk } = recommend(dataset, 'Klient E', DEFAULT_SETTINGS);
 ```
 
 `dataset` je obyčejný objekt (typ `Dataset` v `engine/types.ts`). Odkud přijde, je jádru jedno: z Excelu, z databáze nebo z API brokera.
 
 ## Měsíční použití
 
-V aplikaci otevřete **Data a pravidla**, stáhněte šablonu, aktualizujte ceny, kurzy, pozice, hotovost a datum ocenění a soubor nahrajte. Data zůstávají v prohlížeči, nikam se neodesílají.
+V panelu **Pravidla** vlevo dole (sekce Data) stáhněte šablonu, aktualizujte ceny, kurzy, pozice, hotovost a datum ocenění a soubor nahrajte. Data zůstávají v prohlížeči, nikam se neodesílají.

@@ -16,4 +16,8 @@ export const DEFAULT_SETTINGS: Settings = {
   waitMaxDays: 90,
   waitMinSavingCzk: 10_000,
   wholeUnits: false,
+  stageParts: 3,
+  stageIntervalDays: 30,
+  stageMinPct: 20,
+  shockPct: 10,
 };

@@ -2,9 +2,9 @@
 // Používá stejné jádro jako webová aplikace, takže čísla jsou vždy shodná.
 
 import { readFileSync, writeFileSync } from 'node:fs';
-import { czk, day, explain, label, money, pct, pp, qty, STATUS_LABEL, statusKind } from '../adapters/cs';
+import { czk, day, doneDate, explain, label, money, pct, pp, qty, signed, STATUS_LABEL, statusKind, tradeCount, variantTitle } from '../adapters/cs';
 import { parseWorkbook } from '../adapters/excel';
-import { DEFAULT_SETTINGS as S, recommend } from '../engine';
+import { DEFAULT_SETTINGS as S, recommend, shockEffect, type Plan } from '../engine';
 
 const { dataset } = parseWorkbook(readFileSync('zadani/DZ_case_study_rebalancing_data.xlsx'));
 const L: string[] = [];
@@ -41,6 +41,19 @@ for (const r of recs) {
           `| ${st.isNow ? 'hned' : day(st.date)} | ${t.side === 'buy' ? 'Nákup' : 'Prodej'} | ${t.ticker} | ${qty(t.qty)} | ${czk(t.czk)} | ${money(t.amountLocal, t.currency)} | ${t.lots.map((l) => `${day(l.buyDate)}: ${qty(l.qty)} ks, ${l.exempt ? 'osvobozeno' : 'zdanitelné'}`).join('; ')} |`,
         );
     L.push('', `Obrat ${czk(p.turnoverCzk)} · poplatky ${czk(p.feesCzk)} · daň ${czk(p.taxCzk)} · náklady celkem ${czk(p.costCzk)} (${pct(p.costCzk / p.projectedTotalCzk)} majetku).`, '');
+
+    const variants = [r.nowPlan, r.waitPlan, r.stagedPlan].filter((x): x is Plan => x !== null);
+    if (variants.length > 1) {
+      L.push(`**Varianty provedení** (scénář: trh se po první části posune o ${S.shockPct} %, rozdíl proti „všechno hned“):`, '');
+      L.push(`| Varianta | Hotovo | Obchodních dnů | Pokynů | Poplatky | Daň | Trh −${S.shockPct} % | Trh +${S.shockPct} % |`, '|---|---|---:|---:|---:|---:|---:|---:|');
+      for (const v of variants) {
+        const e = shockEffect(v, r.nowPlan, S.shockPct);
+        L.push(
+          `| ${variantTitle(v)}${v === p ? ' **(doporučeno)**' : ''} | ${day(doneDate(v)!)} | ${v.stages.length} | ${tradeCount(v)} | ${czk(v.feesCzk)} | ${czk(v.taxCzk)} | ${signed(e.downCzk)} | ${signed(e.upCzk)} |`,
+        );
+      }
+      L.push('');
+    }
   }
 }
 

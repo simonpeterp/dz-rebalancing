@@ -20,6 +20,7 @@ Růstový, investiční horizont 15+ let · fyzická osoba · V listopadu plánu
 - Volná hotovost 690 375 Kč jde do podvážených aktiv v poměru jejich podvážení.
 - Ani po využití cash flow není v pásmu: VWCE +6,9 p. b. (pásmo ±5,0 p. b.) a EUNA −5,7 p. b. (pásmo ±5,0 p. b.). Proto se portfolio dorovnává na cílové váhy.
 - Všechny prodávané kusy jsou v den prodeje držené déle než 3 roky (osvobozený zisk 265 651 Kč), daň je 0 Kč.
+- Rozložení v čase se nedoporučuje: čistý nákup z hotovosti je jen 6,4 % portfolia, méně než hranice 20 %.
 
 | Aktivum | Hodnota | Váha | Cíl | Odchylka | Pásmo | Po zásahu |
 |---|---:|---:|---:|---:|---:|---:|
@@ -38,6 +39,13 @@ Růstový, investiční horizont 15+ let · fyzická osoba · V listopadu plánu
 
 Obrat 2 192 567 Kč · poplatky 2 193 Kč · daň 0 Kč · náklady celkem 2 193 Kč (0,0 % majetku).
 
+**Varianty provedení** (scénář: trh se po první části posune o 10 %, rozdíl proti „všechno hned“):
+
+| Varianta | Hotovo | Obchodních dnů | Pokynů | Poplatky | Daň | Trh −10 % | Trh +10 % |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Všechno hned **(doporučeno)** | 10. 11. 2026 | 2 | 5 | 2 193 Kč | 0 Kč | 0 Kč | 0 Kč |
+| Rozložit do 3 částí | 22. 12. 2026 | 4 | 11 | 2 219 Kč | 0 Kč | 0 Kč | 0 Kč |
+
 ## Klient B: Připravit hotovost
 
 Rentiér, žije z portfolia · fyzická osoba · Pravidelná měsíční renta a v lednu jednorázový výběr na bydlení pro dceru.
@@ -48,6 +56,7 @@ Rentiér, žije z portfolia · fyzická osoba · Pravidelná měsíční renta a
 - Po výběrech chybí 1 920 586 Kč hotovosti (včetně doplnění rezervy na cílových 5,0 %). Prodává se jen z aktiv nad cílovou vahou, takže výběr zároveň vrací portfolio k cíli.
 - Po těchto obchodech je vše v tolerančním pásmu, další prodej není potřeba.
 - Všechny prodávané kusy jsou v den prodeje držené déle než 3 roky (osvobozený zisk 577 376 Kč), daň je 0 Kč.
+- Rozložení v čase se nedoporučuje: do trhu se nepřidává nová hotovost a odklad by jen držel portfolio déle mimo cíl.
 - Za horizontem, zatím nezapočteno: výběr 85 000 Kč 1. 2. 2027, výběr 85 000 Kč 1. 3. 2027 a výběr 85 000 Kč 1. 4. 2027.
 
 | Aktivum | Hodnota | Váha | Cíl | Odchylka | Pásmo | Po zásahu |
@@ -64,6 +73,13 @@ Rentiér, žije z portfolia · fyzická osoba · Pravidelná měsíční renta a
 | hned | Prodej | EUNA | 5 692,2546 | 639 047 Kč | 26 298,22 EUR | 10. 2. 2021: 5 692,2546 ks, osvobozeno |
 
 Obrat 1 920 586 Kč · poplatky 1 921 Kč · daň 0 Kč · náklady celkem 1 921 Kč (0,0 % majetku).
+
+**Varianty provedení** (scénář: trh se po první části posune o 10 %, rozdíl proti „všechno hned“):
+
+| Varianta | Hotovo | Obchodních dnů | Pokynů | Poplatky | Daň | Trh −10 % | Trh +10 % |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Všechno hned **(doporučeno)** | 23. 10. 2026 | 1 | 2 | 1 921 Kč | 0 Kč | 0 Kč | 0 Kč |
+| Rozložit do 3 částí | 22. 12. 2026 | 3 | 6 | 1 921 Kč | 0 Kč | −128 039 Kč | +128 039 Kč |
 
 ## Klient C: Bez zásahu
 
@@ -92,6 +108,8 @@ Firemní rezerva, horizont 10 let · s.r.o. · Firma 20. 10. 2026 převedla voln
 - Volná hotovost 4 500 000 Kč jde do podvážených aktiv v poměru jejich podvážení.
 - Po těchto obchodech je vše v tolerančním pásmu, další prodej není potřeba.
 - Jen nákupy, žádný prodej: u s.r.o. by se každý prodej se ziskem danil 21 %.
+- Čistý nákup z hotovosti je 42,6 % portfolia, víc než hranice 20 %. Koupit všechno v jeden den by byla sázka na jediný kurz, proto je zásah rozložen do 3 částí po 30 dnech, poslední 22. 12. 2026.
+- Co rozložení obnáší: kdyby trh po první části klesl o 10 %, vyjde o 300 000 Kč lépe než všechno hned; kdyby o 10 % vzrostl, o 300 000 Kč hůř. Do 22. 12. 2026 zůstává část portfolia mimo cílové váhy.
 - Za horizontem, zatím nezapočteno: vklad 3 000 000 Kč 15. 2. 2027.
 
 | Aktivum | Hodnota | Váha | Cíl | Odchylka | Pásmo | Po zásahu |
@@ -103,11 +121,24 @@ Firemní rezerva, horizont 10 let · s.r.o. · Firma 20. 10. 2026 převedla voln
 
 | Kdy | Akce | Ticker | Kusy | Částka | V měně | Z nákupů |
 |---|---|---|---:|---:|---:|---|
-| hned | Nákup | VWCE | 727,3656 | 2 518 685 Kč | 103 649,60 EUR |  |
-| hned | Nákup | AVWS | 2 173,6927 | 665 541 Kč | 27 388,53 EUR |  |
-| hned | Nákup | EUNA | 11 720,1419 | 1 315 773 Kč | 54 147,06 EUR |  |
+| hned | Nákup | VWCE | 242,4552 | 839 562 Kč | 34 549,87 EUR |  |
+| hned | Nákup | AVWS | 724,5642 | 221 847 Kč | 9 129,51 EUR |  |
+| hned | Nákup | EUNA | 3 906,714 | 438 591 Kč | 18 049,02 EUR |  |
+| 22. 11. 2026 | Nákup | VWCE | 242,4552 | 839 562 Kč | 34 549,87 EUR |  |
+| 22. 11. 2026 | Nákup | AVWS | 724,5642 | 221 847 Kč | 9 129,51 EUR |  |
+| 22. 11. 2026 | Nákup | EUNA | 3 906,714 | 438 591 Kč | 18 049,02 EUR |  |
+| 22. 12. 2026 | Nákup | VWCE | 242,4552 | 839 562 Kč | 34 549,87 EUR |  |
+| 22. 12. 2026 | Nákup | AVWS | 724,5642 | 221 847 Kč | 9 129,51 EUR |  |
+| 22. 12. 2026 | Nákup | EUNA | 3 906,714 | 438 591 Kč | 18 049,02 EUR |  |
 
 Obrat 4 500 000 Kč · poplatky 4 500 Kč · daň 0 Kč · náklady celkem 4 500 Kč (0,0 % majetku).
+
+**Varianty provedení** (scénář: trh se po první části posune o 10 %, rozdíl proti „všechno hned“):
+
+| Varianta | Hotovo | Obchodních dnů | Pokynů | Poplatky | Daň | Trh −10 % | Trh +10 % |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Všechno hned | 23. 10. 2026 | 1 | 3 | 4 500 Kč | 0 Kč | 0 Kč | 0 Kč |
+| Rozložit do 3 částí **(doporučeno)** | 22. 12. 2026 | 3 | 9 | 4 500 Kč | 0 Kč | +300 000 Kč | −300 000 Kč |
 
 ## Klient E: Počkat s prodejem
 
@@ -119,7 +150,8 @@ Růstově vyvážený · fyzická osoba · Dlouholetý klient, část pozic nako
 - Po výběrech chybí 197 780 Kč hotovosti. Prodává se jen z aktiv nad cílovou vahou, takže výběr zároveň vrací portfolio k cíli.
 - Ani po využití cash flow není v pásmu: VWCE +11,8 p. b. (pásmo ±5,0 p. b.) a EUNA −9,4 p. b. (pásmo ±5,0 p. b.). Proto se portfolio dorovnává na cílové váhy.
 - Všechny prodávané kusy jsou v den prodeje držené déle než 3 roky (osvobozený zisk 923 237 Kč), daň je 0 Kč.
-- Počkat se vyplatí: 620,44 ks VWCE z nákupu 20. 11. 2023 splní časový test 21. 11. 2026. Prodej hned by stál na dani 80 953 Kč, po tomto datu 0 Kč. Osvobozené kusy se prodají hned.
+- Počkat se vyplatí: 620,44 ks VWCE z nákupu 20. 11. 2023 splní časový test 21. 11. 2026. Prodej hned by stál na dani 80 953 Kč, po tomto datu 0 Kč. Osvobozené kusy se prodávají dřív. Vyplatí se to, dokud VWCE do té doby neztratí víc než 3,8 % proti nakupovaným aktivům.
+- Rozložení v čase se nedoporučuje: do trhu se nepřidává nová hotovost a odklad by jen držel portfolio déle mimo cíl.
 
 | Aktivum | Hodnota | Váha | Cíl | Odchylka | Pásmo | Po zásahu |
 |---|---:|---:|---:|---:|---:|---:|
@@ -139,3 +171,11 @@ Růstově vyvážený · fyzická osoba · Dlouholetý klient, část pozic nako
 | 21. 11. 2026 | Nákup | IGLN | 238,5962 | 392 825 Kč | 18 705,94 USD |  |
 
 Obrat 5 345 667 Kč · poplatky 5 346 Kč · daň 0 Kč · náklady celkem 5 346 Kč (0,0 % majetku).
+
+**Varianty provedení** (scénář: trh se po první části posune o 10 %, rozdíl proti „všechno hned“):
+
+| Varianta | Hotovo | Obchodních dnů | Pokynů | Poplatky | Daň | Trh −10 % | Trh +10 % |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Všechno hned | 23. 10. 2026 | 1 | 3 | 5 346 Kč | 80 953 Kč | 0 Kč | 0 Kč |
+| Počkat do 21. 11. 2026 **(doporučeno)** | 21. 11. 2026 | 2 | 6 | 5 346 Kč | 0 Kč | −25 000 Kč | +25 000 Kč |
+| Rozložit do 3 částí | 22. 12. 2026 | 3 | 9 | 5 346 Kč | 0 Kč | −25 000 Kč | +25 000 Kč |
