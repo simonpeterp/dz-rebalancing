@@ -120,38 +120,33 @@ export function Dashboard({ data, rows, settings: s, compare }: { data: Dataset;
 
       <div className="two">
         <section className="card">
-          <h2>Jak daleko jsou klienti od cíle</h2>
-          <p className="muted">Podíl portfolia, který by se musel přesunout, aby váhy seděly přesně na cíl. Čárka ukazuje stav po navrženém zásahu.</p>
+          <h2>Kolik portfolia je mimo cíl</h2>
+          <p className="muted">
+            Jaká část portfolia je teď jinde, než má podle cílových vah být (třeba hotovost místo ETF), a kolik korun by se muselo přesunout. Pod číslem je stav po navrženém
+            zásahu.
+          </p>
           <div className="offbars">
-            {sorted.map((r) => {
-              const v = r.plan.valuation;
-              const now = offTargetCzk(v.assets, 1);
-              const after = offTargetCzk(r.plan.after, 1);
-              const href = `#/klient/${encodeURIComponent(v.client.name)}`;
-              return (
-                <a key={v.client.name} className="offbar" href={href}>
-                  <span className="offbar-name">{v.client.name}</span>
-                  <span className="offbar-track" role="img" aria-label={`${v.client.name}: mimo cíl ${pct(now)}, po zásahu ${pct(after)}`}>
-                    <span className="offbar-fill" style={{ width: `${(now / maxOff) * 100}%` }} />
-                    {r.plan.status !== 'none' && <span className="offbar-after" style={{ left: `${(after / maxOff) * 100}%` }} />}
-                  </span>
-                  <span className="offbar-val">
-                    <strong>{pct(now)}</strong>
-                    <span className="sub-inline">{mil(now * v.totalCzk)}</span>
-                  </span>
-                </a>
-              );
-            })}
-          </div>
-          <div className="chart-legend">
-            <span>
-              <i className="key-bar" />
-              teď
-            </span>
-            <span>
-              <i className="key-tick" />
-              po zásahu
-            </span>
+            {[...rows]
+              .sort((x, y) => offTargetCzk(y.plan.valuation.assets, 1) - offTargetCzk(x.plan.valuation.assets, 1))
+              .map((r) => {
+                const v = r.plan.valuation;
+                const now = offTargetCzk(v.assets, 1);
+                const after = offTargetCzk(r.plan.after, 1);
+                const acts = r.plan.status !== 'none';
+                return (
+                  <a key={v.client.name} className="offbar" href={`#/klient/${encodeURIComponent(v.client.name)}`}>
+                    <span className="offbar-name">{v.client.name}</span>
+                    <span className="offbar-track" role="img" aria-label={`${v.client.name}: mimo cíl ${pct(now)}${acts ? `, po zásahu ${pct(after)}` : ', bez zásahu'}`}>
+                      <span className="offbar-fill" style={{ width: `${(now / maxOff) * 100}%` }} />
+                    </span>
+                    <span className="offbar-val">
+                      <strong>{pct(now)}</strong>
+                      <span className="sub-inline">{mil(now * v.totalCzk)}</span>
+                      <span className="offbar-after">{acts ? `po zásahu ${pct(after)}` : 'v pásmu, bez zásahu'}</span>
+                    </span>
+                  </a>
+                );
+              })}
           </div>
         </section>
 

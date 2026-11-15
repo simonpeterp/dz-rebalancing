@@ -749,19 +749,6 @@ select {
   height: 10px;
   border-radius: 2px;
 }
-.key-bar {
-  width: 16px;
-  height: 8px;
-  border-radius: 0 3px 3px 0;
-  background: var(--ink);
-}
-.key-tick {
-  width: 5px;
-  height: 14px;
-  background: var(--accent);
-  border: 1px solid var(--ink);
-  border-radius: 2px;
-}
 svg text.ax {
   font: 400 11px var(--sans);
   fill: var(--ink-3);
@@ -841,7 +828,7 @@ svg a:hover text.ax-link {
 }
 .offbar {
   display: grid;
-  grid-template-columns: 78px minmax(60px, 1fr) 150px;
+  grid-template-columns: 78px minmax(60px, 1fr) 156px;
   align-items: center;
   gap: 12px;
   padding: 8px 0;
@@ -870,14 +857,9 @@ svg a:hover text.ax-link {
   border-radius: 0 4px 4px 0;
 }
 .offbar-after {
-  position: absolute;
-  top: -4px;
-  bottom: -4px;
-  width: 5px;
-  margin-left: -2px;
-  background: var(--accent);
-  border: 1px solid var(--ink);
-  border-radius: 2px;
+  display: block;
+  font-size: 12px;
+  color: var(--ink-3);
 }
 .offbar-val {
   white-space: nowrap;

@@ -27,7 +27,14 @@ export function ClientDetail({ data, row, settings: s, compare, simFlows, onAddF
   const [saleDate, setSaleDate] = useState(addDays(data.asOf, 30));
   const [simAmount, setSimAmount] = useState('');
   const [simKind, setSimKind] = useState<'out' | 'in'>('in');
-  const [simDate, setSimDate] = useState(addDays(data.asOf, 14));
+  // Výchozí datum simulace je dnešek. Musí ale být po datu ocenění (starší pohyby už jsou
+  // v zůstatcích) a v horizontu, jinak by se s pohybem neobchodovalo a nic by se nezměnilo.
+  const [simDate, setSimDate] = useState(() => {
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const first = addDays(data.asOf, 1);
+    return today < first ? first : today > p.horizonEnd ? p.horizonEnd : today;
+  });
 
   const shownRec = { ...rec, plan: p };
   const taxOn = (l: (typeof v.lots)[number], date: string) => (isExemptOn(l.exemptFrom, date) ? 0 : Math.max(0, l.gainCzk) * rate);
