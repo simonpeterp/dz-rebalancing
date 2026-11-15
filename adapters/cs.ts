@@ -81,17 +81,20 @@ export function summary(p: Plan): string {
   const sells = tickersOf(p, 'sell');
   const buys = tickersOf(p, 'buy');
   const staged = p.variant === 'staged' ? ` Rozloženo do ${p.parts} částí, poslední ${day(doneDate(p)!)}.` : '';
+  // Výběry vyšší, než kolik jde z portfolia uvolnit: to musí být vidět jako první, ne až mezi důvody.
+  const warn = p.cashShortfall ? 'Pozor, majetek nestačí na plánované výběry. ' : '';
+  const sell = `Prodat ${list(sells)} za ${czk(p.sellCzk)}`;
   switch (statusKind(p)) {
     case 'none':
-      return 'Všechna aktiva jsou v pásmu.';
+      return `${warn}Všechna aktiva jsou v pásmu.`;
     case 'invest':
-      return `Nakoupit ${list(buys)} za ${czk(p.buyCzk)}, bez prodeje.${staged}`;
+      return `${warn}Nakoupit ${list(buys)} za ${czk(p.buyCzk)}, bez prodeje.${staged}`;
     case 'raise':
-      return `Prodat ${list(sells)} za ${czk(p.sellCzk)} na plánované výběry.${staged}`;
+      return `${warn}${sell} na plánované výběry.${staged}`;
     case 'rebalance':
-      return `Prodat ${list(sells)} za ${czk(p.sellCzk)}, nakoupit ${list(buys)}.${staged}`;
+      return `${warn}${sell}${buys.length ? `, nakoupit ${list(buys)}` : ''}.${staged}`;
     case 'wait':
-      return `Část hned, hlavní prodej ${list(sells)} až ${day(p.deferredUntil!)} bez daně.`;
+      return `${warn}Část hned, hlavní prodej ${list(sells)} až ${day(p.deferredUntil!)} bez daně.`;
   }
 }
 
@@ -119,7 +122,7 @@ export function explain(r: Recommendation, s: Settings): string[] {
   if (p.status !== 'none' && p.cashNeedCzk > 0 && p.sellCzk > 0) {
     const cashT = v.client.targets[CASH] ?? 0;
     out.push(
-      `Po výběrech chybí ${czk(p.cashNeedCzk)} hotovosti${cashT > 0 ? ` (včetně doplnění rezervy na cílových ${pct(cashT)})` : ''}. Prodává se jen z aktiv nad cílovou vahou, takže výběr zároveň vrací portfolio k cíli.`,
+      `Po výběrech chybí ${czk(p.cashNeedCzk)} hotovosti${cashT > 0 ? ` (včetně doplnění rezervy na cílových ${pct(cashT)})` : ''}. ${p.cashShortfall ? 'Tolik se prodejem získat nedá.' : 'Prodává se jen z aktiv nad cílovou vahou, takže výběr zároveň vrací portfolio k cíli.'}`,
     );
   }
   if (p.status !== 'none' && p.cashNeedCzk < 0 && p.buyCzk > 0) {
@@ -201,6 +204,7 @@ export function explain(r: Recommendation, s: Settings): string[] {
     const f = p.flowsLater.map((x) => `${x.amountCzk > 0 ? 'vklad' : 'výběr'} ${czk(Math.abs(x.amountCzk))} ${day(x.date)}`);
     out.push(`Za horizontem, zatím nezapočteno: ${list(f)}.`);
   }
-  if (p.cashShortfall && p === r.nowPlan) out.push('Pozor: hotovost v čase nepokryje všechny výběry, plán je potřeba upravit ručně.');
+  if (p.cashShortfall)
+    out.unshift('Pozor: plánované výběry jsou vyšší, než kolik lze z portfolia včas uvolnit. Nástroj navrhuje prodat, co jde, ale plán je potřeba upravit ručně nebo výběr s klientem přeplánovat.');
   return out;
 }
